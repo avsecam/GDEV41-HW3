@@ -9,12 +9,13 @@ const int WINDOW_WIDTH(800);
 const int WINDOW_HEIGHT(600);
 
 const int GUIDE_THICKNESS(3);
-const int BALL_COUNT(4);
+const int BALL_COUNT(5);
 const float BALL_MASS(1.0f);
 const int BALL_RADIUS(30);
 const Vector2 CUE_START_POSITION({200, WINDOW_HEIGHT / 2});
 
 const int FORCE_MULTIPLIER(50);
+const float ELASTICITY(0.5f);
 
 
 struct Circle {
@@ -62,20 +63,27 @@ void drawTable() {
 }
 
 
+float getImpulse(Circle a, Circle b, Vector2 relativeVelocity, Vector2 collisionNormal) {
+    float impulse(-(((1 + ELASTICITY) * (Vector2DotProduct(relativeVelocity, collisionNormal)) / (Vector2DotProduct(collisionNormal, collisionNormal) * ((1 / a.mass) + (1 / b.mass))))));
+
+    return impulse;
+}
+
+
 int main() {
     // Setup balls
     Circle* balls = new Circle[BALL_COUNT];
-    balls[0].position.x = 495;
-    balls[0].position.y = WINDOW_HEIGHT / 2;
-    balls[1].position.x = 545;
-    balls[1].position.y = (WINDOW_HEIGHT / 2) - 35;
-    balls[2].position.x = 595;
-    balls[2].position.y = WINDOW_HEIGHT / 2;
-    balls[3].position.x = 545;
-    balls[3].position.y = (WINDOW_HEIGHT / 2) + 35;
+    balls[1].position.x = 495;
+    balls[1].position.y = WINDOW_HEIGHT / 2;
+    balls[2].position.x = 545;
+    balls[2].position.y = (WINDOW_HEIGHT / 2) - 35;
+    balls[3].position.x = 595;
+    balls[3].position.y = WINDOW_HEIGHT / 2;
+    balls[4].position.x = 545;
+    balls[4].position.y = (WINDOW_HEIGHT / 2) + 35;
 
     // Setup cue
-    Circle* cue = new Circle;
+    Circle* cue = &balls[0];
     cue->position = CUE_START_POSITION;
     cue->color = WHITE;
 
@@ -120,23 +128,45 @@ int main() {
         // Physics
         accumulator += deltaTime;
         while (accumulator >= TIMESTEP) {
-            cue->update(hitForce, TIMESTEP);
+            // Collision detection
             for (int i = 0; i < BALL_COUNT; i++) {
+                for (int j = 0; j < BALL_COUNT; j++) {
+                    if (j == i) continue;
+
+                    float sumOfRadii(pow(BALL_RADIUS * 2, 2));
+                    float distanceBetweenCenters(Vector2DistanceSqr(balls[i].position, balls[j].position));
+                    if (sumOfRadii >= distanceBetweenCenters) {
+                        // Collision detected
+                        Vector2 collisionNormalAB({balls[j].position.x - balls[i].position.x, balls[j].position.y - balls[i].position.y});
+                        Vector2 relativeVelocityAB(Vector2Subtract(balls[i].velocity, balls[j].velocity));
+
+                        // Check dot product between collision normal and relative velocity
+                        if (Vector2DotProduct(Vector2Normalize(relativeVelocityAB), Vector2Normalize(collisionNormalAB)) <= 0) {
+                            float impulse = getImpulse(balls[i], balls[j], relativeVelocityAB, collisionNormalAB);
+                            balls[i].velocity = Vector2Add(balls[i].velocity, Vector2Scale(Vector2Scale(collisionNormalAB, balls[i].mass), impulse));
+                            balls[j].velocity = Vector2Subtract(balls[j].velocity, Vector2Scale(Vector2Scale(collisionNormalAB, balls[j].mass), impulse));
+                        }
+                    }
+                }
+            }
+
+
+            cue->update(hitForce, TIMESTEP);
+            for (int i = 1; i < BALL_COUNT; i++) {
                 balls[i].update();
             }
             accumulator -= TIMESTEP;
         }
 
-
         // Draw balls
         for (int i = 0; i < BALL_COUNT; i++) {
             balls[i].draw();
         }
-        cue->draw();
         
         EndDrawing();
     }
     
+    delete[] balls;
     CloseWindow();
     return 0;
 }
