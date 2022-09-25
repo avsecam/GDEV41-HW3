@@ -14,6 +14,8 @@ const float BALL_MASS(1.0f);
 const int BALL_RADIUS(30);
 const Vector2 CUE_START_POSITION({200, WINDOW_HEIGHT / 2});
 
+const float VELOCITY_THRESHOLD(1.0f);
+
 const int FORCE_MULTIPLIER(50);
 const float ELASTICITY(0.5f);
 
@@ -32,13 +34,18 @@ struct Circle {
         DrawCircle(position.x, position.y, radius, color);
     }
 
+
     void update(Vector2 force = {0.0f, 0.0f}, float timestep = TIMESTEP) {
-        acceleration.x = force.x / mass;
-        acceleration.y = force.y / mass;
-        velocity.x += acceleration.x * TIMESTEP;
-        velocity.y += acceleration.y * TIMESTEP;
-        position.x += velocity.x * TIMESTEP;
-        position.y += velocity.y * TIMESTEP;
+        acceleration = Vector2Add(Vector2Scale(force, 1 / mass), (Vector2Scale(velocity, -0.75f)));
+        velocity = Vector2Add(velocity, Vector2Scale(acceleration, TIMESTEP));
+        velocity.x = (velocity.x < VELOCITY_THRESHOLD) ? 0.0f : velocity.x; 
+        velocity.y = (velocity.y < VELOCITY_THRESHOLD) ? 0.0f : velocity.y; 
+        position = Vector2Add(position, Vector2Scale(velocity, TIMESTEP));
+    }
+
+    bool isMoving() {
+        if (velocity.x != 0.0f || velocity.y != 0.0f) return false;
+        else return true;
     }
 };
 
@@ -87,6 +94,8 @@ int main() {
     cue->position = CUE_START_POSITION;
     cue->color = WHITE;
 
+    bool isPlayersTurn(false);
+
     bool mouseStartedDragging(false);
     Vector2 mouseDragStartPosition;
     Vector2 mousePosition;
@@ -106,22 +115,33 @@ int main() {
 
         drawTable();
 
-        // Input
-        mousePosition = GetMousePosition();
-        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-            if (!mouseStartedDragging) {
-                mouseDragStartPosition = mousePosition;
-                mouseStartedDragging = true;
-            } else {
-                DrawLineEx(mouseDragStartPosition, mousePosition, GUIDE_THICKNESS, YELLOW);
+        isPlayersTurn = true;
+        // Check if balls aren't moving
+        for (int i = 0; i < BALL_COUNT; i++) {
+            if (balls[i].isMoving()) {
+                isPlayersTurn = false;
+                break;
             }
-        } else {
-            hitForce = {0.0f, 0.0f};
-            if (mouseStartedDragging) {
-                // Hit cue
-                hitForce.x = -(mousePosition.x - mouseDragStartPosition.x) * FORCE_MULTIPLIER;
-                hitForce.y = -(mousePosition.y - mouseDragStartPosition.y) * FORCE_MULTIPLIER;
-                mouseStartedDragging = false;
+        }
+
+        // Input
+        if (isPlayersTurn) {
+            mousePosition = GetMousePosition();
+            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                if (!mouseStartedDragging) {
+                    mouseDragStartPosition = mousePosition;
+                    mouseStartedDragging = true;
+                } else {
+                    DrawLineEx(mouseDragStartPosition, mousePosition, GUIDE_THICKNESS, YELLOW);
+                }
+            } else {
+                hitForce = {0.0f, 0.0f};
+                if (mouseStartedDragging) {
+                    // Hit cue
+                    hitForce.x = -(mousePosition.x - mouseDragStartPosition.x) * FORCE_MULTIPLIER;
+                    hitForce.y = -(mousePosition.y - mouseDragStartPosition.y) * FORCE_MULTIPLIER;
+                    mouseStartedDragging = false;
+                }
             }
         }
         
@@ -151,7 +171,7 @@ int main() {
                 }
             }
 
-
+            // Movement
             cue->update(hitForce, TIMESTEP);
             for (int i = 1; i < BALL_COUNT; i++) {
                 balls[i].update();
