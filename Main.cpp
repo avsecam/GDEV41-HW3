@@ -3,18 +3,18 @@
 #include <iostream>
 
 
-const int TARGET_FPS = 60;
-const float TIMESTEP = 1.0f / TARGET_FPS;
-const int WINDOW_WIDTH = 800;
-const int WINDOW_HEIGHT = 600;
+const int TARGET_FPS(60);
+const float TIMESTEP(1.0f / TARGET_FPS);
+const int WINDOW_WIDTH(800);
+const int WINDOW_HEIGHT(600);
 
-const int GUIDE_THICKNESS = 3;
-const int BALL_COUNT = 4;
-const float BALL_MASS = 1.0f;
-const int BALL_RADIUS = 30;
-const Vector2 CUE_START_POSITION = {200, WINDOW_HEIGHT / 2};
+const int GUIDE_THICKNESS(3);
+const int BALL_COUNT(4);
+const float BALL_MASS(1.0f);
+const int BALL_RADIUS(30);
+const Vector2 CUE_START_POSITION({200, WINDOW_HEIGHT / 2});
 
-const int FORCE_MULTIPLIER = 50;
+const int FORCE_MULTIPLIER(50);
 
 
 struct Circle {
@@ -31,7 +31,7 @@ struct Circle {
         DrawCircle(position.x, position.y, radius, color);
     }
 
-    void update(Vector2 force, float timestep) {
+    void update(Vector2 force = {0.0f, 0.0f}, float timestep = TIMESTEP) {
         acceleration.x = force.x / mass;
         acceleration.y = force.y / mass;
         velocity.x += acceleration.x * TIMESTEP;
@@ -79,15 +79,20 @@ int main() {
     cue->position = CUE_START_POSITION;
     cue->color = WHITE;
 
-    bool mouseStartedDragging = false;
+    bool mouseStartedDragging(false);
     Vector2 mouseDragStartPosition;
     Vector2 mousePosition;
 
     Vector2 hitForce; // Force when releasing mouse to hit cue ball
 
+    float accumulator(0.0f);
+    float deltaTime;
+
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Physics, Collision");
     SetTargetFPS(TARGET_FPS);
     while (!WindowShouldClose()) {
+        deltaTime = GetFrameTime();
+
         BeginDrawing();
         ClearBackground(WHITE);
 
@@ -113,7 +118,14 @@ int main() {
         }
         
         // Physics
-        cue->update(hitForce, TIMESTEP);
+        accumulator += deltaTime;
+        while (accumulator >= TIMESTEP) {
+            cue->update(hitForce, TIMESTEP);
+            for (int i = 0; i < BALL_COUNT; i++) {
+                balls[i].update();
+            }
+            accumulator -= TIMESTEP;
+        }
 
 
         // Draw balls
