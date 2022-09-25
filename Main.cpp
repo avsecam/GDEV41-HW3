@@ -15,7 +15,7 @@ const int BALL_RADIUS(30);
 const Vector2 CUE_START_POSITION({200, WINDOW_HEIGHT / 2});
 
 const float FRICTION(-0.75f);
-const float VELOCITY_THRESHOLD(2.0f);
+const float VELOCITY_THRESHOLD(5.0f);
 
 const int FORCE_MULTIPLIER(50);
 const float ELASTICITY(0.5f);
@@ -79,21 +79,23 @@ float getImpulse(Circle a, Circle b, Vector2 relativeVelocity, Vector2 collision
 }
 
 
+void resetTable(Circle* balls) {
+    balls[0].position = CUE_START_POSITION;
+
+    balls[1].position = {495, WINDOW_HEIGHT / 2};
+    balls[2].position = {545, (WINDOW_HEIGHT / 2) - 35};
+    balls[3].position = {595, WINDOW_HEIGHT / 2};
+    balls[4].position = {545, (WINDOW_HEIGHT / 2) + 35};
+}
+
+
 int main() {
     // Setup balls
     Circle* balls = new Circle[BALL_COUNT];
-    balls[1].position.x = 495;
-    balls[1].position.y = WINDOW_HEIGHT / 2;
-    balls[2].position.x = 545;
-    balls[2].position.y = (WINDOW_HEIGHT / 2) - 35;
-    balls[3].position.x = 595;
-    balls[3].position.y = WINDOW_HEIGHT / 2;
-    balls[4].position.x = 545;
-    balls[4].position.y = (WINDOW_HEIGHT / 2) + 35;
+    resetTable(balls);
 
     // Setup cue
     Circle* cue = &balls[0];
-    cue->position = CUE_START_POSITION;
     cue->color = WHITE;
 
     bool isPlayersTurn(false);
@@ -126,9 +128,13 @@ int main() {
             }
         }
 
-        if (isPlayersTurn) DrawText("Your move.", 300, 2, BALL_RADIUS, YELLOW);
+        if (isPlayersTurn) DrawText("Your move. Press R to reset table.", 130, 2, BALL_RADIUS, YELLOW);
 
         // Input
+        if (IsKeyPressed(KEY_R) && isPlayersTurn) {
+            resetTable(balls);
+        }
+
         mousePosition = GetMousePosition();
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
             if (isPlayersTurn) {
