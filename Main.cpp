@@ -140,8 +140,9 @@ int main() {
                         Vector2 collisionNormalAB({balls[j].position.x - balls[i].position.x, balls[j].position.y - balls[i].position.y});
                         Vector2 relativeVelocityAB(Vector2Subtract(balls[i].velocity, balls[j].velocity));
 
+                        // Collision response
                         // Check dot product between collision normal and relative velocity
-                        if (Vector2DotProduct(Vector2Normalize(relativeVelocityAB), Vector2Normalize(collisionNormalAB)) <= 0) {
+                        if (Vector2DotProduct(Vector2Normalize(relativeVelocityAB), Vector2Normalize(collisionNormalAB)) > 0) {
                             float impulse = getImpulse(balls[i], balls[j], relativeVelocityAB, collisionNormalAB);
                             balls[i].velocity = Vector2Add(balls[i].velocity, Vector2Scale(Vector2Scale(collisionNormalAB, balls[i].mass), impulse));
                             balls[j].velocity = Vector2Subtract(balls[j].velocity, Vector2Scale(Vector2Scale(collisionNormalAB, balls[j].mass), impulse));
