@@ -4,19 +4,23 @@
 
 
 const int TARGET_FPS = 60;
+const float TIMESTEP = 1.0f / TARGET_FPS;
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 600;
 
+const int GUIDE_THICKNESS = 3;
 const int BALL_COUNT = 4;
 const float BALL_MASS = 1.0f;
 const int BALL_RADIUS = 30;
 const Vector2 CUE_START_POSITION = {200, WINDOW_HEIGHT / 2};
 
+const int FORCE_MULTIPLIER = 50;
+
 
 struct Circle {
-    Vector2 position;
-    Vector2 velocity;
-    Vector2 acceleration;
+    Vector2 position = {0.0f, 0.0f};
+    Vector2 velocity = {0.0f, 0.0f};
+    Vector2 acceleration = {0.0f, 0.0f};
 
     float mass = BALL_MASS;
     int radius = BALL_RADIUS;
@@ -25,6 +29,15 @@ struct Circle {
 
     void draw() {
         DrawCircle(position.x, position.y, radius, color);
+    }
+
+    void update(Vector2 force, float timestep) {
+        acceleration.x = force.x / mass;
+        acceleration.y = force.y / mass;
+        velocity.x += acceleration.x * TIMESTEP;
+        velocity.y += acceleration.y * TIMESTEP;
+        position.x += velocity.x * TIMESTEP;
+        position.y += velocity.y * TIMESTEP;
     }
 };
 
@@ -66,14 +79,44 @@ int main() {
     cue->position = CUE_START_POSITION;
     cue->color = WHITE;
 
+    bool mouseStartedDragging = false;
+    Vector2 mouseDragStartPosition;
+    Vector2 mousePosition;
+
+    Vector2 hitForce; // Force when releasing mouse to hit cue ball
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Physics, Collision");
     SetTargetFPS(TARGET_FPS);
     while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(WHITE);
-        
+
         drawTable();
+
+        // Input
+        mousePosition = GetMousePosition();
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            if (!mouseStartedDragging) {
+                mouseDragStartPosition = mousePosition;
+                mouseStartedDragging = true;
+            } else {
+                DrawLineEx(mouseDragStartPosition, mousePosition, GUIDE_THICKNESS, YELLOW);
+            }
+        } else {
+            hitForce = {0.0f, 0.0f};
+            if (mouseStartedDragging) {
+                // Hit cue
+                hitForce.x = -(mousePosition.x - mouseDragStartPosition.x) * FORCE_MULTIPLIER;
+                hitForce.y = -(mousePosition.y - mouseDragStartPosition.y) * FORCE_MULTIPLIER;
+                mouseStartedDragging = false;
+            }
+        }
+        
+        // Physics
+        cue->update(hitForce, TIMESTEP);
+
+
+        // Draw balls
         for (int i = 0; i < BALL_COUNT; i++) {
             balls[i].draw();
         }
