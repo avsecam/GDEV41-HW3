@@ -10,11 +10,12 @@ const int WINDOW_HEIGHT(600);
 
 const int GUIDE_THICKNESS(3);
 const int BALL_COUNT(5);
-const float BALL_MASS(1.0f);
+const float BALL_MASS(0.5f);
 const int BALL_RADIUS(30);
 const Vector2 CUE_START_POSITION({200, WINDOW_HEIGHT / 2});
 
-const float VELOCITY_THRESHOLD(1.0f);
+const float FRICTION(-0.75f);
+const float VELOCITY_THRESHOLD(2.0f);
 
 const int FORCE_MULTIPLIER(50);
 const float ELASTICITY(0.5f);
@@ -36,16 +37,17 @@ struct Circle {
 
 
     void update(Vector2 force = {0.0f, 0.0f}, float timestep = TIMESTEP) {
-        acceleration = Vector2Add(Vector2Scale(force, 1 / mass), (Vector2Scale(velocity, -0.75f)));
+        acceleration = Vector2Add(Vector2Scale(force, 1 / mass), (Vector2Scale(velocity, FRICTION))); // Sum of all forces
         velocity = Vector2Add(velocity, Vector2Scale(acceleration, TIMESTEP));
-        velocity.x = (velocity.x < VELOCITY_THRESHOLD) ? 0.0f : velocity.x; 
-        velocity.y = (velocity.y < VELOCITY_THRESHOLD) ? 0.0f : velocity.y; 
+        velocity.x = (abs(velocity.x) < VELOCITY_THRESHOLD) ? 0.0f : velocity.x; 
+        velocity.y = (abs(velocity.y) < VELOCITY_THRESHOLD) ? 0.0f : velocity.y; 
         position = Vector2Add(position, Vector2Scale(velocity, TIMESTEP));
     }
 
+
     bool isMoving() {
-        if (velocity.x != 0.0f || velocity.y != 0.0f) return false;
-        else return true;
+        if (velocity.x != 0.0f || velocity.y != 0.0f) return true;
+        else return false;
     }
 };
 
@@ -71,7 +73,7 @@ void drawTable() {
 
 
 float getImpulse(Circle a, Circle b, Vector2 relativeVelocity, Vector2 collisionNormal) {
-    float impulse(-(((1 + ELASTICITY) * (Vector2DotProduct(relativeVelocity, collisionNormal)) / (Vector2DotProduct(collisionNormal, collisionNormal) * ((1 / a.mass) + (1 / b.mass))))));
+    float impulse(-(((1.0f + ELASTICITY) * (Vector2DotProduct(relativeVelocity, collisionNormal)) / (Vector2DotProduct(collisionNormal, collisionNormal) * ((1.0f / a.mass) + (1.0f / b.mass))))));
 
     return impulse;
 }
@@ -100,7 +102,7 @@ int main() {
     Vector2 mouseDragStartPosition;
     Vector2 mousePosition;
 
-    Vector2 hitForce; // Force when releasing mouse to hit cue ball
+    Vector2 hitForce({0.0f, 0.0f}); // Force when releasing mouse to hit cue ball
 
     float accumulator(0.0f);
     float deltaTime;
@@ -125,23 +127,22 @@ int main() {
         }
 
         // Input
-        if (isPlayersTurn) {
-            mousePosition = GetMousePosition();
-            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        mousePosition = GetMousePosition();
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            if (isPlayersTurn) {
                 if (!mouseStartedDragging) {
                     mouseDragStartPosition = mousePosition;
                     mouseStartedDragging = true;
                 } else {
                     DrawLineEx(mouseDragStartPosition, mousePosition, GUIDE_THICKNESS, YELLOW);
                 }
-            } else {
-                hitForce = {0.0f, 0.0f};
-                if (mouseStartedDragging) {
-                    // Hit cue
-                    hitForce.x = -(mousePosition.x - mouseDragStartPosition.x) * FORCE_MULTIPLIER;
-                    hitForce.y = -(mousePosition.y - mouseDragStartPosition.y) * FORCE_MULTIPLIER;
-                    mouseStartedDragging = false;
-                }
+            }
+        } else {
+            hitForce = {0.0f, 0.0f};
+            if (mouseStartedDragging) {
+                // Hit cue
+                hitForce = Vector2Scale((Vector2Subtract(mousePosition, mouseDragStartPosition)), -FORCE_MULTIPLIER);
+                mouseStartedDragging = false;
             }
         }
         
@@ -164,8 +165,8 @@ int main() {
                         // Check dot product between collision normal and relative velocity
                         if (Vector2DotProduct(Vector2Normalize(relativeVelocityAB), Vector2Normalize(collisionNormalAB)) > 0) {
                             float impulse = getImpulse(balls[i], balls[j], relativeVelocityAB, collisionNormalAB);
-                            balls[i].velocity = Vector2Add(balls[i].velocity, Vector2Scale(Vector2Scale(collisionNormalAB, balls[i].mass), impulse));
-                            balls[j].velocity = Vector2Subtract(balls[j].velocity, Vector2Scale(Vector2Scale(collisionNormalAB, balls[j].mass), impulse));
+                            balls[i].velocity = Vector2Add(balls[i].velocity, Vector2Scale(Vector2Scale(collisionNormalAB, 1.0f / balls[i].mass), impulse));
+                            balls[j].velocity = Vector2Subtract(balls[j].velocity, Vector2Scale(Vector2Scale(collisionNormalAB, 1.0f / balls[j].mass), impulse));
                         }
                     }
                 }
