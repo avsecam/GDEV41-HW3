@@ -126,6 +126,8 @@ int main() {
             }
         }
 
+        if (isPlayersTurn) DrawText("Your move.", 300, 2, BALL_RADIUS, YELLOW);
+
         // Input
         mousePosition = GetMousePosition();
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
