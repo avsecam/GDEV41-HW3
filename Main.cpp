@@ -196,6 +196,7 @@ int main() {
         EndDrawing();
     }
     
+    delete cue;
     delete[] balls;
     CloseWindow();
     return 0;
