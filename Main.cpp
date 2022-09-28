@@ -14,6 +14,9 @@ const float BALL_MASS(0.5f);
 const int BALL_RADIUS(30);
 const Vector2 CUE_START_POSITION({200, WINDOW_HEIGHT / 2});
 
+const int HOLE_COUNT(4);
+const int HOLE_RADIUS(35);
+
 const float FRICTION(-0.75f);
 const float VELOCITY_THRESHOLD(5.0f);
 
@@ -49,8 +52,20 @@ struct Circle {
   }
 };
 
-void drawTable() {
-  int holeRadius = BALL_RADIUS + 2;
+struct Hole {
+  Vector2 position = {0.0f, 0.0f};
+  int radius = HOLE_RADIUS;
+
+  void setPosition(float xPosition, float yPosition) {
+    position.x = xPosition;
+    position.y = yPosition;
+  }
+
+  void draw() { DrawCircle(position.x, position.y, radius, BLACK); }
+};
+
+void drawTable(Hole* holes) {
+  int holeRadius = HOLE_RADIUS;
 
   // Draw floor
   DrawRectangle(
@@ -75,12 +90,17 @@ void drawTable() {
   );  // right
 
   // Draw holes
-  DrawCircle(holeRadius, holeRadius, holeRadius, BLACK);
-  DrawCircle(WINDOW_WIDTH - holeRadius, holeRadius, holeRadius, BLACK);
-  DrawCircle(
-    WINDOW_WIDTH - holeRadius, WINDOW_HEIGHT - holeRadius, holeRadius, BLACK
-  );
-  DrawCircle(holeRadius, WINDOW_HEIGHT - holeRadius, holeRadius, BLACK);
+  holes[0].setPosition(holeRadius, holeRadius);
+  holes[0].draw();
+
+  holes[1].setPosition(WINDOW_WIDTH - holeRadius, holeRadius);
+  holes[1].draw();
+
+  holes[2].setPosition(WINDOW_WIDTH - holeRadius, WINDOW_HEIGHT - holeRadius);
+  holes[2].draw();
+
+  holes[3].setPosition(holeRadius, WINDOW_HEIGHT - holeRadius);
+  holes[3].draw();
 }
 
 float getImpulse(
@@ -114,6 +134,9 @@ int main() {
   Circle* cue = &balls[0];
   cue->color = WHITE;
 
+  // Setup holes
+  Hole* holes = new Hole[HOLE_COUNT];
+
   bool isPlayersTurn(false);
 
   bool mouseStartedDragging(false);
@@ -137,7 +160,7 @@ int main() {
     BeginDrawing();
     ClearBackground(WHITE);
 
-    drawTable();
+    drawTable(holes);
 
     isPlayersTurn = true;
     // Check if balls aren't moving
@@ -188,6 +211,25 @@ int main() {
       // Collision detection
       // Collision detection between balls
       for (int i = 0; i < BALL_COUNT; i++) {
+
+        for (int h = 0; h < HOLE_COUNT; h++) {
+          Circle* ball = &balls[i];
+          Hole* hole = &holes[h];
+
+          float sumOfRadii(pow(BALL_RADIUS + (HOLE_RADIUS / 2), 2));
+          float distanceBetweenCenters(Vector2DistanceSqr(ball->position, hole->position));
+
+          if (sumOfRadii >= distanceBetweenCenters) {
+            if (ball == &balls[0]) {
+              ball->velocity = {0, 0};
+              ball->position = CUE_START_POSITION;
+            }
+            else {
+              ball->position = {1000, 1000};
+            }
+          }
+        } 
+
         for (int j = 0; j < BALL_COUNT; j++) {
           if (j == i) continue;
 
