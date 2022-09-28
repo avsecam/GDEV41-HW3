@@ -126,7 +126,7 @@ int main() {
   float deltaTime;
 
   // Sounds
-	InitAudioDevice();
+  InitAudioDevice();
   Sound ballHit = LoadSound("ball_hit.wav");
 
   InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Physics, Collision");
@@ -186,46 +186,67 @@ int main() {
     accumulator += deltaTime;
     while (accumulator >= TIMESTEP) {
       // Collision detection
-			// Collision detection between balls
+      // Collision detection between balls
       for (int i = 0; i < BALL_COUNT; i++) {
         for (int j = 0; j < BALL_COUNT; j++) {
           if (j == i) continue;
 
+          Circle* a = &balls[i];
+          Circle* b = &balls[j];
+
           float sumOfRadii(pow(BALL_RADIUS * 2, 2));
           float distanceBetweenCenters(
-            Vector2DistanceSqr(balls[i].position, balls[j].position)
+            Vector2DistanceSqr(a->position, b->position)
           );
-					
-					// Collision detected
+
+          // Collision detected
           if (sumOfRadii >= distanceBetweenCenters) {
             Vector2 collisionNormalAB(
-              {balls[j].position.x - balls[i].position.x,
-               balls[j].position.y - balls[i].position.y}
+              {b->position.x - a->position.x, b->position.y - a->position.y}
             );
-            Vector2 relativeVelocityAB(
-              Vector2Subtract(balls[i].velocity, balls[j].velocity)
+            Vector2 relativeVelocityAB(Vector2Subtract(a->velocity, b->velocity)
             );
-						
-						// Set hit sound volume depending on strength of hit
-						SetSoundVolume(ballHit, Remap(Vector2Length(relativeVelocityAB), 200.0f, 1000.0f, 0.0f, 1.0f));
+            Vector2 collisionNormalABNormalized(
+              Vector2Normalize(collisionNormalAB)
+            );
+            Vector2 relativeVelocityABNormalized(
+              Vector2Normalize(relativeVelocityAB)
+            );
+
+            // I think we should also separate balls that are touching
+            if (Vector2Length(relativeVelocityAB) <= 0.1f) {
+              a->position = Vector2Subtract(
+                a->position, Vector2Scale(collisionNormalABNormalized, 0.5f)
+              );
+              b->position = Vector2Add(
+                b->position, Vector2Scale(collisionNormalABNormalized, 0.5f)
+              );
+            }
+
+            // Set hit sound volume depending on strength of hit
+            SetSoundVolume(
+              ballHit,
+              Remap(
+                Vector2Length(relativeVelocityAB), 200.0f, 1000.0f, 0.0f, 1.0f
+              )
+            );
             PlaySoundMulti(ballHit);
 
             // Collision response
             // Check dot product between collision normal and relative velocity
-            if (Vector2DotProduct(Vector2Normalize(relativeVelocityAB), Vector2Normalize(collisionNormalAB)) > 0) {
-              float impulse = getImpulse(
-                balls[i], balls[j], relativeVelocityAB, collisionNormalAB
-              );
-              balls[i].velocity = Vector2Add(
-                balls[i].velocity,
+            if (Vector2DotProduct(relativeVelocityABNormalized, collisionNormalABNormalized) > 0) {
+              float impulse =
+                getImpulse(*a, *b, relativeVelocityAB, collisionNormalAB);
+              a->velocity = Vector2Add(
+                a->velocity,
                 Vector2Scale(
-                  Vector2Scale(collisionNormalAB, 1.0f / balls[i].mass), impulse
+                  Vector2Scale(collisionNormalAB, 1.0f / a->mass), impulse
                 )
               );
-              balls[j].velocity = Vector2Subtract(
-                balls[j].velocity,
+              b->velocity = Vector2Subtract(
+                b->velocity,
                 Vector2Scale(
-                  Vector2Scale(collisionNormalAB, 1.0f / balls[j].mass), impulse
+                  Vector2Scale(collisionNormalAB, 1.0f / b->mass), impulse
                 )
               );
             }
@@ -254,6 +275,6 @@ int main() {
   UnloadSound(ballHit);
 
   CloseWindow();
-	CloseAudioDevice();
+  CloseAudioDevice();
   return 0;
 }
