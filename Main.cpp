@@ -224,9 +224,10 @@ int main() {
     accumulator += deltaTime;
     while (accumulator >= TIMESTEP) {
       // Collision detection
-      // Collision detection between balls
+      // Collision detection between balls and holes
       for (int i = 0; i < BALL_COUNT; i++) {
 
+        // Checks if a ball is mostly in the hole
         for (int h = 0; h < HOLE_COUNT; h++) {
           Circle* ball = &balls[i];
           Hole* hole = &holes[h];
@@ -245,6 +246,7 @@ int main() {
           }
         } 
 
+        // Collision between 2 balls
         for (int j = 0; j < BALL_COUNT; j++) {
           if (j == i) continue;
 
