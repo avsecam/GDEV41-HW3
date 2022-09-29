@@ -32,6 +32,8 @@ struct Circle {
   int radius = BALL_RADIUS;
   Color color = RED;
 
+	bool active = true;
+
   void draw() { DrawCircle(position.x, position.y, radius, color); }
 
   void update(Vector2 force = {0.0f, 0.0f}, float timestep = TIMESTEP) {
@@ -50,6 +52,11 @@ struct Circle {
     else
       return false;
   }
+
+	void setInactive() {
+		active = false;
+		color = {0, 0, 0, 0};
+	}
 };
 
 struct Hole {
@@ -120,9 +127,17 @@ void resetTable(Circle* balls) {
   balls[0].position = CUE_START_POSITION;
 
   balls[1].position = {495, WINDOW_HEIGHT / 2};
+	balls[1].color = RED;
+	balls[1].active = true;
   balls[2].position = {545, (WINDOW_HEIGHT / 2) - 35};
+	balls[2].color = RED;
+	balls[2].active = true;
   balls[3].position = {595, WINDOW_HEIGHT / 2};
+	balls[3].color = RED;
+	balls[3].active = true;
   balls[4].position = {545, (WINDOW_HEIGHT / 2) + 35};
+	balls[4].color = RED;
+	balls[4].active = true;
 }
 
 int main() {
@@ -225,7 +240,7 @@ int main() {
               ball->position = CUE_START_POSITION;
             }
             else {
-              ball->position = {1000, 1000};
+							ball->setInactive();
             }
           }
         } 
@@ -235,6 +250,8 @@ int main() {
 
           Circle* a = &balls[i];
           Circle* b = &balls[j];
+
+					if (!a->active || !b->active) continue;
 
           float sumOfRadii(pow(BALL_RADIUS * 2, 2));
           float distanceBetweenCenters(
