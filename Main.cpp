@@ -1,5 +1,6 @@
 #include <raylib.h>
 #include <raymath.h>
+
 #include <algorithm>
 #include <iostream>
 
@@ -11,7 +12,7 @@ const int WINDOW_HEIGHT(600);
 const int GUIDE_THICKNESS(3);
 const int BALL_COUNT(5);
 const float BALL_MASS(0.5f);
-const int BALL_RADIUS(30);
+const int BALL_RADIUS(25);
 const Vector2 CUE_START_POSITION({200, WINDOW_HEIGHT / 2});
 
 const int HOLE_COUNT(4);
@@ -21,7 +22,7 @@ const float FRICTION(-0.75f);
 const float VELOCITY_THRESHOLD(5.0f);
 
 const int FORCE_MULTIPLIER(75);
-const float HITFORCE_LIMIT(50000.0f);
+const float HITFORCE_LIMIT(30000.0f);
 const float ELASTICITY(0.5f);
 
 struct Circle {
@@ -124,12 +125,13 @@ float getImpulse(
   return impulse;
 }
 
-float getImpulseAABB(Circle ball, Vector2 relativeVelocity, Vector2 collisionNormal){
+float getImpulseAABB(
+  Circle ball, Vector2 relativeVelocity, Vector2 collisionNormal
+) {
   float impulse(-(
     ((1.0f + ELASTICITY) *
      (Vector2DotProduct(relativeVelocity, collisionNormal)) /
-     (Vector2DotProduct(collisionNormal, collisionNormal) *
-      (1.0f / ball.mass)))
+     (Vector2DotProduct(collisionNormal, collisionNormal) * (1.0f / ball.mass)))
   ));
   return impulse;
 }
@@ -151,6 +153,15 @@ void resetTable(Circle* balls) {
   balls[4].active = true;
 }
 
+bool isGameOver(Circle* balls) {
+  for (int i = 1; i < BALL_COUNT; i++) {
+    if (balls[i].active) {
+      return false;
+    }
+  }
+  return true;
+}
+
 int main() {
   // Setup balls
   Circle* balls = new Circle[BALL_COUNT];
@@ -163,6 +174,7 @@ int main() {
   // Setup holes
   Hole* holes = new Hole[HOLE_COUNT];
 
+  bool gameOver(false);
   bool isPlayersTurn(false);
 
   bool mouseStartedDragging(false);
@@ -205,92 +217,135 @@ int main() {
     // Input
     if (IsKeyPressed(KEY_R) && isPlayersTurn) {
       resetTable(balls);
+			gameOver = false;
     }
 
-    mousePosition = GetMousePosition();
-    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-      if (isPlayersTurn) {
-        if (!mouseStartedDragging) {
-          mouseDragStartPosition = mousePosition;
-          mouseStartedDragging = true;
-        } else {
-          DrawLineEx(
-            mouseDragStartPosition, mousePosition, GUIDE_THICKNESS, YELLOW
-          );
+    if (!gameOver) {
+      mousePosition = GetMousePosition();
+      if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        if (isPlayersTurn) {
+          if (!mouseStartedDragging) {
+            mouseDragStartPosition = mousePosition;
+            mouseStartedDragging = true;
+          } else {
+            DrawLineEx(
+              mouseDragStartPosition, mousePosition, GUIDE_THICKNESS, YELLOW
+            );
+          }
         }
-      }
-    } else {
-      hitForce = {0.0f, 0.0f};
-      if (mouseStartedDragging) {
-        // Hit cue
-        hitForce = Vector2ClampValue(
-          Vector2Scale(
-            (Vector2Subtract(mousePosition, mouseDragStartPosition)),
-            -FORCE_MULTIPLIER
-          ),
-          0.0f, HITFORCE_LIMIT
-        );
-        mouseStartedDragging = false;
-				printf("%.2f, %.2f\n", hitForce.x, hitForce.y);
+      } else {
+        hitForce = {0.0f, 0.0f};
+        if (mouseStartedDragging) {
+          // Hit cue
+          hitForce = Vector2ClampValue(
+            Vector2Scale(
+              (Vector2Subtract(mousePosition, mouseDragStartPosition)),
+              -FORCE_MULTIPLIER
+            ),
+            0.0f, HITFORCE_LIMIT
+          );
+          mouseStartedDragging = false;
+        }
       }
     }
 
     // Physics
     accumulator += deltaTime;
-    Vector2 topWallClampedPoint, leftWallClampedPoint, rightWallClampedPoint, bottomWallClampedPoint;
+    Vector2 topWallClampedPoint, leftWallClampedPoint, rightWallClampedPoint,
+      bottomWallClampedPoint;
     bool isColliding = false;
     while (accumulator >= TIMESTEP) {
       // Collision detection
-      // Collision detection between balls and holes
       for (int i = 0; i < BALL_COUNT; i++) {
         // Collision between ball and wall
-        
-        topWallClampedPoint = {Clamp(balls[i].position.x, 70.0f, 800.f-70.0f), Clamp(balls[i].position.y, 0.0f, 35.0f)};
-        leftWallClampedPoint = {Clamp(balls[i].position.x, 0.0f, 35.0f), Clamp(balls[i].position.y, 70.0f, 600.0f-70.0f)};
-        bottomWallClampedPoint = {Clamp(balls[i].position.x, 70.0f, 800.0f-70.0f), Clamp(balls[i].position.y, 600.0f-35.0f, 600.0f)};
-        rightWallClampedPoint = {Clamp(balls[i].position.x, 800.0f-35.0f, 800.0f), Clamp(balls[i].position.y, 70.0f, 600-70.0f)};
-        Vector2 relativeVelocity = Vector2Subtract(balls[i].velocity,{0.0f, 0.0f});
-        
-        if (isColliding == false){
+
+        topWallClampedPoint = {
+          Clamp(balls[i].position.x, 70.0f, 800.f - 70.0f),
+          Clamp(balls[i].position.y, 0.0f, 35.0f)};
+        leftWallClampedPoint = {
+          Clamp(balls[i].position.x, 0.0f, 35.0f),
+          Clamp(balls[i].position.y, 70.0f, 600.0f - 70.0f)};
+        bottomWallClampedPoint = {
+          Clamp(balls[i].position.x, 70.0f, 800.0f - 70.0f),
+          Clamp(balls[i].position.y, 600.0f - 35.0f, 600.0f)};
+        rightWallClampedPoint = {
+          Clamp(balls[i].position.x, 800.0f - 35.0f, 800.0f),
+          Clamp(balls[i].position.y, 70.0f, 600 - 70.0f)};
+        Vector2 relativeVelocity =
+          Vector2Subtract(balls[i].velocity, {0.0f, 0.0f});
+
+        if (isColliding == false) {
           if(Vector2Distance(topWallClampedPoint, balls[i].position) <= balls[i].radius){
             isColliding = true;
-            std::cout << "top Wall collided. Ball: " << i << std::endl;
-            Vector2 collisionNormal = {balls[i].position.x - topWallClampedPoint.x, balls[i].position.y - topWallClampedPoint.y};
-            float impulse = getImpulseAABB(balls[i], relativeVelocity, collisionNormal);
-            balls[i].position.y += 1.0f;
-            balls[i].velocity = Vector2Add(balls[i].velocity, Vector2Scale(Vector2Scale(collisionNormal, 1.0f/balls[i].mass), impulse)); 
+            // std::cout << "top Wall collided. Ball: " << i << std::endl;
+            Vector2 collisionNormal = {
+              balls[i].position.x - topWallClampedPoint.x,
+              balls[i].position.y - topWallClampedPoint.y};
+            float impulse =
+              getImpulseAABB(balls[i], relativeVelocity, collisionNormal);
+            balls[i].position.y += 2.0f;
+            balls[i].velocity = Vector2Add(
+              balls[i].velocity,
+              Vector2Scale(
+                Vector2Scale(collisionNormal, 1.0f / balls[i].mass), impulse
+              )
+            );
             isColliding = false;
           }
           if(Vector2Distance(leftWallClampedPoint, balls[i].position) <= balls[i].radius){
             isColliding = true;
-            std::cout << "left Wall collided. Ball: " << i << std::endl;
-            Vector2 collisionNormal = {balls[i].position.x - leftWallClampedPoint.x, balls[i].position.y - leftWallClampedPoint.y};
-            float impulse = getImpulseAABB(balls[i], relativeVelocity, collisionNormal);
-            balls[i].position.x += 1.0f;
-            balls[i].velocity = Vector2Add(balls[i].velocity, Vector2Scale(Vector2Scale(collisionNormal, 1.0f/balls[i].mass), impulse)); 
+            // std::cout << "left Wall collided. Ball: " << i << std::endl;
+            Vector2 collisionNormal = {
+              balls[i].position.x - leftWallClampedPoint.x,
+              balls[i].position.y - leftWallClampedPoint.y};
+            float impulse =
+              getImpulseAABB(balls[i], relativeVelocity, collisionNormal);
+            balls[i].position.x += 2.0f;
+            balls[i].velocity = Vector2Add(
+              balls[i].velocity,
+              Vector2Scale(
+                Vector2Scale(collisionNormal, 1.0f / balls[i].mass), impulse
+              )
+            );
             isColliding = false;
           }
           if(Vector2Distance(rightWallClampedPoint, balls[i].position) <= balls[i].radius){
             isColliding = true;
-            std::cout << "right Wall collided. Ball: " << i << std::endl;
-            Vector2 collisionNormal = {balls[i].position.x - rightWallClampedPoint.x, balls[i].position.y - rightWallClampedPoint.y};
-            float impulse = getImpulseAABB(balls[i], relativeVelocity, collisionNormal);
-            balls[i].position.x -= 1.0f;
-            balls[i].velocity = Vector2Add(balls[i].velocity, Vector2Scale(Vector2Scale(collisionNormal, 1.0f/balls[i].mass), impulse)); 
+            // std::cout << "right Wall collided. Ball: " << i << std::endl;
+            Vector2 collisionNormal = {
+              balls[i].position.x - rightWallClampedPoint.x,
+              balls[i].position.y - rightWallClampedPoint.y};
+            float impulse =
+              getImpulseAABB(balls[i], relativeVelocity, collisionNormal);
+            balls[i].position.x -= 2.0f;
+            balls[i].velocity = Vector2Add(
+              balls[i].velocity,
+              Vector2Scale(
+                Vector2Scale(collisionNormal, 1.0f / balls[i].mass), impulse
+              )
+            );
             isColliding = false;
           }
           if(Vector2Distance(bottomWallClampedPoint, balls[i].position) <= balls[i].radius){
             isColliding = true;
-            std::cout << "bottom Wall collided. Ball: " << i << std::endl;
-            Vector2 collisionNormal = {balls[i].position.x - bottomWallClampedPoint.x, balls[i].position.y - bottomWallClampedPoint.y};
-            float impulse = getImpulseAABB(balls[i], relativeVelocity, collisionNormal);
-            balls[i].position.y -= 1.0f;
-            balls[i].velocity = Vector2Add(balls[i].velocity, Vector2Scale(Vector2Scale(collisionNormal, 1.0f/balls[i].mass), impulse)); 
+            // std::cout << "bottom Wall collided. Ball: " << i << std::endl;
+            Vector2 collisionNormal = {
+              balls[i].position.x - bottomWallClampedPoint.x,
+              balls[i].position.y - bottomWallClampedPoint.y};
+            float impulse =
+              getImpulseAABB(balls[i], relativeVelocity, collisionNormal);
+            balls[i].position.y -= 2.0f;
+            balls[i].velocity = Vector2Add(
+              balls[i].velocity,
+              Vector2Scale(
+                Vector2Scale(collisionNormal, 1.0f / balls[i].mass), impulse
+              )
+            );
             isColliding = false;
           }
         }
-        
-        
+
+        // Collision detection between balls and holes
         // Checks if a ball is mostly in the hole
         for (int h = 0; h < HOLE_COUNT; h++) {
           Circle* ball = &balls[i];
@@ -307,6 +362,10 @@ int main() {
               ball->position = CUE_START_POSITION;
             } else {
               ball->setInactive();
+              if (isGameOver(balls)) {
+                gameOver = true;
+                continue;
+              }
             }
           }
         }
@@ -378,8 +437,6 @@ int main() {
             }
           }
         }
-
-        
       }
 
       // Movement
@@ -395,11 +452,19 @@ int main() {
       balls[i].draw();
     }
 
+    if (gameOver) {
+      DrawText(
+        "Game Over.\nPress R to reset table.", 150, 250, BALL_RADIUS + 10,
+        YELLOW
+      );
+    }
+
     EndDrawing();
   }
 
   delete cue;
   delete[] balls;
+  delete[] holes;
   UnloadSound(ballHit);
 
   CloseWindow();
