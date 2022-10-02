@@ -20,7 +20,8 @@ const int HOLE_RADIUS(35);
 const float FRICTION(-0.75f);
 const float VELOCITY_THRESHOLD(5.0f);
 
-const int FORCE_MULTIPLIER(50);
+const int FORCE_MULTIPLIER(75);
+const float HITFORCE_LIMIT(50000.0f);
 const float ELASTICITY(0.5f);
 
 struct Circle {
@@ -32,7 +33,7 @@ struct Circle {
   int radius = BALL_RADIUS;
   Color color = RED;
 
-	bool active = true;
+  bool active = true;
 
   void draw() { DrawCircle(position.x, position.y, radius, color); }
 
@@ -53,10 +54,10 @@ struct Circle {
       return false;
   }
 
-	void setInactive() {
-		active = false;
-		color = {0, 0, 0, 0};
-	}
+  void setInactive() {
+    active = false;
+    color = {0, 0, 0, 0};
+  }
 };
 
 struct Hole {
@@ -127,17 +128,17 @@ void resetTable(Circle* balls) {
   balls[0].position = CUE_START_POSITION;
 
   balls[1].position = {495, WINDOW_HEIGHT / 2};
-	balls[1].color = RED;
-	balls[1].active = true;
+  balls[1].color = RED;
+  balls[1].active = true;
   balls[2].position = {545, (WINDOW_HEIGHT / 2) - 35};
-	balls[2].color = RED;
-	balls[2].active = true;
+  balls[2].color = RED;
+  balls[2].active = true;
   balls[3].position = {595, WINDOW_HEIGHT / 2};
-	balls[3].color = RED;
-	balls[3].active = true;
+  balls[3].color = RED;
+  balls[3].active = true;
   balls[4].position = {545, (WINDOW_HEIGHT / 2) + 35};
-	balls[4].color = RED;
-	balls[4].active = true;
+  balls[4].color = RED;
+  balls[4].active = true;
 }
 
 int main() {
@@ -212,11 +213,15 @@ int main() {
       hitForce = {0.0f, 0.0f};
       if (mouseStartedDragging) {
         // Hit cue
-        hitForce = Vector2Scale(
-          (Vector2Subtract(mousePosition, mouseDragStartPosition)),
-          -FORCE_MULTIPLIER
+        hitForce = Vector2ClampValue(
+          Vector2Scale(
+            (Vector2Subtract(mousePosition, mouseDragStartPosition)),
+            -FORCE_MULTIPLIER
+          ),
+          0.0f, HITFORCE_LIMIT
         );
         mouseStartedDragging = false;
+				printf("%.2f, %.2f\n", hitForce.x, hitForce.y);
       }
     }
 
@@ -226,25 +231,25 @@ int main() {
       // Collision detection
       // Collision detection between balls and holes
       for (int i = 0; i < BALL_COUNT; i++) {
-
         // Checks if a ball is mostly in the hole
         for (int h = 0; h < HOLE_COUNT; h++) {
           Circle* ball = &balls[i];
           Hole* hole = &holes[h];
 
           float sumOfRadii(pow(BALL_RADIUS + (HOLE_RADIUS / 2), 2));
-          float distanceBetweenCenters(Vector2DistanceSqr(ball->position, hole->position));
+          float distanceBetweenCenters(
+            Vector2DistanceSqr(ball->position, hole->position)
+          );
 
           if (sumOfRadii >= distanceBetweenCenters) {
             if (ball == &balls[0]) {
               ball->velocity = {0, 0};
               ball->position = CUE_START_POSITION;
-            }
-            else {
-							ball->setInactive();
+            } else {
+              ball->setInactive();
             }
           }
-        } 
+        }
 
         // Collision between 2 balls
         for (int j = 0; j < BALL_COUNT; j++) {
@@ -253,7 +258,7 @@ int main() {
           Circle* a = &balls[i];
           Circle* b = &balls[j];
 
-					if (!a->active || !b->active) continue;
+          if (!a->active || !b->active) continue;
 
           float sumOfRadii(pow(BALL_RADIUS * 2, 2));
           float distanceBetweenCenters(
